@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 
 
 my_session = boto3.session.Session()
-s3 = my_session.client('s3')
+s3 = my_session.client('s3', region_name='us-east-1')
 
 
 @click.group()
@@ -20,37 +20,36 @@ def cli():
 @click.option('--access',
               type=click.Choice(['public', 'private'], case_sensitive=False),
               help='Access control for the bucket (only required for create action).')
-@click.option('--bucket_name', help='Name of the bucket.')
+@click.option('--bucketname', help='Name of the bucket.')
 @click.option('--path',
               help='Path of the file to upload (only required for upload action).')
-def s3manage(action, access, bucket_name, path):
+def s3manage(action, access, bucketname, path):
     if action == 'create':
-        if not bucket_name or not access:
+        if not bucketname or not access:
             click.echo(
-                "For the 'create' action, both --bucket_name and --access are required.")
+                "For the 'create' action, both --bucketname and --access are required.")
             return
     #   double check if the developer want to create public bucket
         if access == 'public':
             if not click.confirm(
-                    f"Are you sure you want to create a public bucket '{bucket_name}'?",
+                    f"Are you sure you want to create a public bucket '{bucketname}'?",
                     default=False):
                 click.echo("yay! bucket created! now its your time to upload files.")
                 return
-        #  put the bucket in the default region 
-        #  but he can create on in another 
+        #  put the bucket in the default region
+        # -but he can create on in another
         try:
             if my_session.region_name == 'us-east-1':
-                s3.create_bucket(Bucket=bucket_name)
-            else:
                 s3.create_bucket(
-                        Bucket=bucket_name,
-                        CreateBucketConfiguration={
-                            'LocationConstraint': my_session.region_name}
+                        ACL=access,
+                        Bucket=bucketname
                 )
+            else:
+                click.echo("U R not in the right region")
 
             # tag the bucket
             s3.put_bucket_tagging(
-                    Bucket=bucket_name,
+                    Bucket=bucketname,
                     Tagging={
                         'TagSet': [
                             {'Key': 'session', 'Value': 'cli'},
@@ -59,28 +58,20 @@ def s3manage(action, access, bucket_name, path):
                     }
             )
             click.echo(
-                f"Bucket '{bucket_name}' tagged with 'session:cli' and 'name:Meshy'.")
-
-            if access == 'public':
-                s3.put_bucket_acl(Bucket=bucket_name, ACL='public-read')
-                click.echo(
-                    f"Bucket '{bucket_name}' created with public access.")
-            else:
-                click.echo(
-                    f"Bucket '{bucket_name}' created with private access.")
+                f"Bucket '{bucketname}' tagged with 'session:cli' and 'name:Meshy'.")
 
         except ClientError as e:
             click.echo(f"Error creating bucket: {e}")
 
     elif action == 'upload':
-        if not bucket_name or not path:
+        if not bucketname or not path:
             click.echo(
-                "For the 'upload' action, both --bucket_name and --path are required.")
+                "For the 'upload' action, both --bucketname and --path are required.")
             return
 
         try:
-            s3.upload_file(path, bucket_name, path)
-            click.echo(f"File '{path}' uploaded to bucket '{bucket_name}'.")
+            s3.upload_file(path, bucketname)
+            click.echo(f"File '{path}' uploaded to bucket '{bucketname}'.")
 
         except FileNotFoundError:
             click.echo(f"File '{path}' not found.")
@@ -88,19 +79,19 @@ def s3manage(action, access, bucket_name, path):
             click.echo(f"Error uploading file: {e}")
 
     elif action == 'list':
-        if not bucket_name:
-            click.echo("For the 'list' action, --bucket_name is required.")
+        if not bucketname:
+            click.echo("For the 'list' action, --bucketname is required.")
             return
 
         try:
-            response = s3.list_objects_v2(Bucket=bucket_name)
+            response = s3.list_objects_v2(Bucket=bucketname)
             if 'Contents' in response:
-                click.echo(f"Contents of bucket '{bucket_name}':")
+                click.echo(f"Contents of bucket '{bucketname}':")
                 for obj in response['Contents']:
                     click.echo(f" - {obj['Key']}")
             else:
                 click.echo(
-                    f"Bucket '{bucket_name}' is empty or does not exist.")
+                    f"Bucket '{bucketname}' is empty or does not exist.")
 
         except ClientError as e:
             click.echo(f"Error listing bucket contents: {e}")
@@ -110,3 +101,4 @@ cli.add_command(s3manage)
 
 if __name__ == '__main__':
     cli()
+
