@@ -23,7 +23,7 @@ def cli():
 @click.option('--bucket_name', help='Name of the bucket.')
 @click.option('--path',
               help='Path of the file to upload (only required for upload action).')
-def s3_manage(action, access, bucket_name, path):
+def s3manage(action, access, bucket_name, path):
     if action == 'create':
         if not bucket_name or not access:
             click.echo(
@@ -106,7 +106,7 @@ def s3_manage(action, access, bucket_name, path):
             click.echo(f"Error listing bucket contents: {e}")
 
 
-cli.add_command(s3_manage)
+cli.add_command(s3manage)
 
 if __name__ == '__main__':
     cli()
