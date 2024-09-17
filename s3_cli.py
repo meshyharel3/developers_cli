@@ -45,7 +45,7 @@ def s3manage(action, access, bucketname, path):
                         Bucket=bucketname
                 )
             else:
-                click.echo("U R not in the right region")
+                click.echo("error! please specify the right region!")
 
             # tag the bucket
             s3.put_bucket_tagging(
